@@ -1,0 +1,10 @@
+sqlmodel
+alembic
+psycopg2-binary
+fastapi
+uvicorn
+python-dotenv
+pydantic
+pydantic-ai
+logfire
+requests

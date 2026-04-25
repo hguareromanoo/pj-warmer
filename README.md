@@ -103,7 +103,35 @@ A busca de cases similares opera em duas camadas:
 | Interface | Chat com suporte a slash commands |
 
 ---
+## Estrutura de pastas
+```text 
+pj-warmer/ 
+├── alembic/ 
+├── src/ 
+│ ├── agents/ 
+│ ├── services/ 
+│ ├── retrieval/
+│ ├── db/ 
+│ ├── schemas/
+│ └── utils/
+├── tests/ 
+├── .env 
+├── alembic.ini 
+├── requirements.txt 
+└── README.md
+```
 
+-   `agents`: orquestra
+    
+-   `services`: executa regras e integrações
+    
+-   `retrieval`: busca informação
+    
+-   `db`: persiste dados
+    
+-   `schemas`: padroniza dados
+    
+-   `utils`: apoia com funções auxiliares
 ## 🚀 Como rodar
 
 ```bash
