@@ -1,10 +1,37 @@
-sqlmodel
-alembic
-psycopg2-binary
+# ============================================================================
+# Núcleo do agente de pesquisa (deep research)
+# ============================================================================
+pydantic-ai>=1.0.0,<2.0.0      # Framework do agente
+pydantic>=2.0.0,<3.0.0          # Validação de schemas
+pydantic-settings>=2.0.0        # Carrega o .env de forma tipada
+tavily-python>=0.5.0            # SDK do Tavily (busca web)
+python-dotenv>=1.0.0            # Lido por pydantic-settings
+
+# ============================================================================
+# Banco de dados (já no roadmap)
+# ============================================================================
+sqlmodel                        # ORM em cima do SQLAlchemy + Pydantic
+alembic                         # Migrações
+psycopg2-binary                 # Driver Postgres (Supabase)
+
+# ============================================================================
+# API web (para a futura interface de chat)
+# ============================================================================
 fastapi
 uvicorn
-python-dotenv
-pydantic
-pydantic-ai
+
+# ============================================================================
+# Observabilidade
+# ============================================================================
 logfire
+
+# ============================================================================
+# Utilidades
+# ============================================================================
 requests
+
+# ============================================================================
+# Testes
+# ============================================================================
+pytest>=8.0.0
+pytest-asyncio>=0.23.0          # Suporte a async em testes pytest
