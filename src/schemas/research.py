@@ -17,6 +17,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from src.schemas.case import CaseResultado
+
 
 # ============================================================================
 # Input
@@ -218,4 +220,65 @@ class WarmerBriefing(BaseModel):
             "Use null se não encontrar."
         ),
         max_length=5,
+    )
+
+
+# ============================================================================
+# Output enriquecido: WarmerBriefing + cases relacionados
+# ============================================================================
+# Esses dois schemas são a saída da integração Cases × Deep Research
+# (ver PLANEJAMENTO_INTEGRACAO_SETOR.md, seção 3.4). Ficam neste arquivo —
+# e não em src/schemas/case.py — porque o "container" final é centrado
+# no briefing; o bloco de cases é um anexo desse briefing.
+class CasesParaBriefing(BaseModel):
+    """
+    Bloco de cases anexado a um WarmerBriefing.
+
+    Duas listas separadas (em vez de uma só) por decisão deliberada
+    (planejamento 3.5): cases por setor e cases por relação (parceiro
+    /concorrente) carregam significados distintos para o Hunter, e um
+    mesmo case pode aparecer nas duas — explicitamente — quando, por
+    exemplo, um parceiro do lead também atua no mesmo setor. Não dedupar
+    entre as listas é proposital: o Hunter precisa ver o duplo sinal.
+    """
+
+    por_setor: list[CaseResultado] = Field(
+        description=(
+            "Cases recuperados pelo setor primário do lead OU por setores "
+            "considerados semanticamente próximos (acima do threshold de "
+            "similaridade). Já dedupados por id pelo orquestrador."
+        ),
+    )
+    por_relacao: list[CaseResultado] = Field(
+        description=(
+            "Cases cujo cliente bate (case+accent insensitive) com algum "
+            "nome listado em `briefing.company.notable_partners_or_clients` "
+            "ou `briefing.industry.direct_competitors`."
+        ),
+    )
+    setores_consultados: list[str] = Field(
+        description=(
+            "Lista de setores que passaram do threshold de similaridade e "
+            "alimentaram a busca em `por_setor`. Inclui o setor primário do "
+            "lead. Serve como trilha de auditoria para diagnosticar quando "
+            "um case 'óbvio' não aparecer ou um case 'errado' aparecer."
+        ),
+    )
+
+
+class BriefingComCases(BaseModel):
+    """
+    Saída final do `run_warmer(lead)`: o briefing original + cases anexos.
+
+    Mantemos as duas peças desacopladas (briefing vs. cases) em vez de
+    achatar tudo num único objeto. Isso preserva a possibilidade de
+    serializar só o briefing (compatibilidade com consumidores que ainda
+    não conhecem cases) e simplifica o raciocínio sobre o schema.
+    """
+
+    briefing: WarmerBriefing = Field(
+        description="Briefing factual produzido pelo deep_research.",
+    )
+    cases: CasesParaBriefing = Field(
+        description="Cases da Poli Júnior relacionados ao lead.",
     )

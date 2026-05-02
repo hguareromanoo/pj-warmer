@@ -23,7 +23,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from src.retrieval.deep_research import run_deep_research
+from src.agents.warmer_orchestrator import run_warmer
 from src.retrieval.formatters import format_as_markdown, to_json_payload
 from src.schemas.research import LeadInput
 
@@ -44,26 +44,37 @@ def _slugify(text: str) -> str:
 async def main() -> None:
     # ↓↓↓ Edite aqui para testar outros leads ↓↓↓
     lead = LeadInput(
-        org_name="Movile",
-        org_setor="Tecnologia / Mobile",
-        person_name="João Silva",
-        person_position="Diretor de Operações",
+        org_name="Nestle",
+        org_setor="Alimentos e bebidas",
+        person_name="Brunno Ragonha",
+        person_position="Diretor de Data Science & Analytics",
     )
     # ↑↑↑ Edite aqui para testar outros leads ↑↑↑
 
     print(f"\n🔍 Pesquisando lead: {lead.org_name}...\n")
     print("(isso pode levar de 30s a 2min, dependendo da quantidade de buscas)\n")
 
-    # Geração do briefing — única chamada que custa API
-    briefing = await run_deep_research(lead)
+    # Geração do briefing + cases relacionados — única chamada que custa API.
+    # `run_warmer` orquestra `run_deep_research` (web + LLM) e o
+    # `case_matcher` (DB + cosseno em memória), devolvendo um BriefingComCases.
+    result = await run_warmer(lead)
+    briefing = result.briefing
+    cases = result.cases
 
-    # 1) Renderização Markdown no terminal (consumo humano)
+    # 1) Renderização Markdown no terminal (consumo humano).
+    #    Por decisão (PLANEJAMENTO_INTEGRACAO_SETOR.md, seção 6), o markdown
+    #    ainda NÃO inclui cases — esse layout fica para quando o slash command
+    #    `/briefing` for implementado. Aqui imprimimos os cases de forma crua
+    #    em um bloco separado mais abaixo.
     markdown = format_as_markdown(briefing, lead)
     print("\n" + "=" * 70)
     print(markdown)
     print("=" * 70 + "\n")
 
-    # 2) Renderização JSON em arquivo (consumo por integrações)
+    # 2) Renderização JSON em arquivo (consumo por integrações).
+    #    Idem: `to_json_payload` não recebe cases nesta sessão (decisão 6).
+    #    O JSON salvo permanece compatível com consumidores que ainda só
+    #    conhecem o briefing.
     payload = to_json_payload(briefing, lead)
     output_dir = Path(__file__).parent / "output"
     output_dir.mkdir(exist_ok=True)
@@ -78,6 +89,29 @@ async def main() -> None:
     print(
         "   (esse é o formato que vai pra banco / Pipedrive / outras integrações)\n"
     )
+
+    # 3) Bloco cru de cases — só para inspeção manual desta fase.
+    #    NÃO vai para arquivo nem para o markdown; o objetivo é validar
+    #    visualmente a Lane A (setor) e a Lane B (relação) e calibrar o
+    #    threshold de similaridade contra cenários reais.
+    print("📂 Cases relacionados (não persistidos ainda)\n")
+
+    print(f"   Setores consultados ({len(cases.setores_consultados)}):")
+    for setor in cases.setores_consultados:
+        print(f"     - {setor}")
+
+    print(f"\n   por_setor ({len(cases.por_setor)}):")
+    for c in cases.por_setor:
+        print(
+            f"     - [{c.id}] {c.cliente} | {c.setor_empresa} "
+            f"| {c.area_pj} / {c.servico_pj}"
+        )
+
+    print(f"\n   por_relacao ({len(cases.por_relacao)}):")
+    for c in cases.por_relacao:
+        print(f"     - [{c.id}] {c.cliente} | {c.setor_empresa}")
+
+    print()
 
 
 if __name__ == "__main__":

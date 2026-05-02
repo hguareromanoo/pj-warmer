@@ -25,7 +25,7 @@ ignorados. Falha barulhenta protege contra typos.
 
 from typing import Optional, TypedDict
 
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import func, literal, or_, select, text
 from sqlmodel import Session
 
 from src.db.models import CasePJ, CasePJEmbedding
@@ -171,6 +171,59 @@ def buscar_deterministico(filtros: dict) -> list[CaseResultado]:
     stmt = _aplicar_filtros(stmt, filtros)
 
     motivo = _motivo_filtros(filtros) or "filtro: (nenhum — todos os cases)"
+
+    with Session(get_engine()) as session:
+        cases = session.scalars(stmt).all()
+
+    return [_case_to_resultado(c, motivo=motivo) for c in cases]
+
+
+# -----------------------------------------------------------------------------
+# Busca por nomes de cliente (Lane B da integração com deep_research)
+# -----------------------------------------------------------------------------
+def buscar_por_clientes(nomes: list[str]) -> list[CaseResultado]:
+    """
+    Retorna cases cujo `cliente` bate (case+accent insensitive) com algum
+    nome da lista.
+
+    Usado pela integração com o briefing (PLANEJAMENTO_INTEGRACAO_SETOR.md,
+    seção 3.3) para encontrar cases de clientes que sejam parceiros ou
+    concorrentes do lead. Os dois campos do briefing
+    (`notable_partners_or_clients` e `direct_competitors`) chegam aqui
+    unidos numa lista única — quem chama é responsável por essa união.
+
+    Match exato após normalização — sem fuzzy/trigram. Decisão consciente
+    do MVP: o risco de falso positivo com nomes curtos não compensa hoje
+    (ver planejamento 3.3, "Match de parceiros/concorrentes").
+
+    Parameters
+    ----------
+    nomes : list[str]
+        Nomes de clientes a buscar. Strings vazias / só-whitespace são
+        ignoradas. Lista vazia (após filtro) curto-circuita para `[]`
+        sem tocar no banco.
+
+    Returns
+    -------
+    list[CaseResultado]
+        Cases que casam. Ordem indefinida (a do banco). `motivo_match`
+        fixo em "cliente=parceiro/concorrente do lead". Sem score.
+    """
+    # Sanitiza ANTES de validar: o caso "lista só com strings vazias" deve
+    # cair no curto-circuito, não disparar query com IN vazio (que em
+    # alguns dialects vira `IN ()`, sintaticamente inválido).
+    nomes_limpos = [n.strip() for n in nomes if n and n.strip()]
+    if not nomes_limpos:
+        return []
+
+    # `_norm` envolve a expressão em lower(unaccent(...)). Aplicado nos dois
+    # lados (coluna e literal) garante simetria — "Hypera Pharma" casa com
+    # "hypera pharma", "HYPERA PHARMA", "Hypéra Pharma", etc.
+    stmt = select(CasePJ).where(
+        _norm(CasePJ.cliente).in_([_norm(literal(n)) for n in nomes_limpos])
+    )
+
+    motivo = "cliente=parceiro/concorrente do lead"
 
     with Session(get_engine()) as session:
         cases = session.scalars(stmt).all()
