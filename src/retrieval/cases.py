@@ -25,7 +25,7 @@ ignorados. Falha barulhenta protege contra typos.
 
 from typing import Optional, TypedDict
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select, text
 from sqlmodel import Session
 
 from src.db.models import CasePJ, CasePJEmbedding
@@ -63,28 +63,56 @@ def _validar_filtros(filtros: dict) -> None:
         )
 
 
+def _norm(value):
+    """
+    Normaliza um valor (coluna ou string literal) para comparação
+    case-insensitive E accent-insensitive.
+
+    `unaccent("Saúde")` -> "Saude"
+    `lower("Saude")`    -> "saude"
+
+    Combinando os dois, "Saúde", "saude", "SAÚDE" e "SAUDE" colapsam
+    todos para "saude" — e a comparação == funciona como esperado.
+
+    Requer a extensão `unaccent` habilitada no Postgres (migração
+    b2c3d4e5f6a7).
+    """
+    return func.lower(func.unaccent(value))
+
+
 def _aplicar_filtros(stmt, filtros: dict):
     """
     Aplica os filtros do dict numa query SQLAlchemy e retorna a query nova.
 
     Recebe e devolve um statement (não muta nada in-place). É chamado tanto
     pela busca determinística quanto pela híbrida, por isso está extraído.
+
+    Todos os matches são case-insensitive e accent-insensitive — ver `_norm`.
     """
     if "setor" in filtros:
         setor = filtros["setor"]
-        # Match em setor primário OU em setores associados. O `.any(setor)`
-        # vira `setor = ANY(setores_associados)` no SQL — o filtro exato
-        # que motivou a mudança de string para TEXT[] na seção 3.4.
+        # Match em setor primário OU em setores associados.
+        #
+        # Para o array (setores_associados), não dá pra usar .any() direto
+        # com normalização — o ANY do Postgres compara o valor literal, sem
+        # passar por unaccent/lower em cada elemento. Solução: subquery
+        # EXISTS que faz unnest do array e aplica a normalização em cada
+        # elemento. Custo: irrelevante para 24-1000 cases.
         stmt = stmt.where(
             or_(
-                CasePJ.setor_empresa == setor,
-                CasePJ.setores_associados.any(setor),
+                _norm(CasePJ.setor_empresa) == _norm(setor),
+                text(
+                    "EXISTS ("
+                    "  SELECT 1 FROM unnest(casepj.setores_associados) AS s"
+                    "  WHERE lower(unaccent(s)) = lower(unaccent(:setor_filtro))"
+                    ")"
+                ).bindparams(setor_filtro=setor),
             )
         )
     if "area_pj" in filtros:
-        stmt = stmt.where(CasePJ.area_pj == filtros["area_pj"])
+        stmt = stmt.where(_norm(CasePJ.area_pj) == _norm(filtros["area_pj"]))
     if "servico_pj" in filtros:
-        stmt = stmt.where(CasePJ.servico_pj == filtros["servico_pj"])
+        stmt = stmt.where(_norm(CasePJ.servico_pj) == _norm(filtros["servico_pj"]))
     return stmt
 
 

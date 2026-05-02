@@ -159,10 +159,10 @@ python main.py
 
 - [x] Banco de cases estruturado (setor + área + serviço)
 - [x] Busca determinística por setor
-- [ ] Embeddings e busca vetorial dos cases
+- [x] Embeddings e busca vetorial dos cases
 - [ ] Interface de chat com slash commands
 - [ ] Integração com Pipedrive (pull de dados do deal)
-- [ ] Deep research da empresa e do lead
+- [x] Deep research da empresa e do lead
 - [ ] Dashboard de observabilidade (Logfire)
 - [ ] Envio de briefing para nota no Pipedrive
 - [ ] Registro de uso e coleta de feedback dos Hunters
