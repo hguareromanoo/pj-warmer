@@ -36,6 +36,25 @@ class Settings(BaseSettings):
         description="Modelo Gemini a ser usado pelo agente de pesquisa.",
     )
 
+    # Banco de dados (Supabase Postgres). Mesma URL usada pelo Alembic.
+    database_url: str = Field(description="String de conexão Postgres do Supabase.")
+
+    # Embeddings — provedor + modelo
+    # `embeddings_provider` é o ponto de extensão para o fallback OpenAI
+    # mencionado na seção 3.2 do PLANEJAMENTO_BUSCA_CASES.md. Hoje só "gemini"
+    # é suportado; trocar é uma única env var quando precisar.
+    embeddings_provider: str = Field(
+        default="gemini",
+        description="Provedor de embeddings ('gemini' ou 'openai').",
+    )
+    gemini_embedding_model: str = Field(
+        default="gemini-embedding-001",
+        description=(
+            "Modelo Gemini de embeddings. O 'gemini-embedding-001' é Matryoshka "
+            "(saída padrão 3072 dims, suporta 768 via output_dimensionality)."
+        ),
+    )
+
     # Parâmetros da busca
     tavily_max_results: int = Field(
         default=3,

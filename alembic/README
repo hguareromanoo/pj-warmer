@@ -1,0 +1,14 @@
+Diretório de migrações do Alembic.
+
+- env.py             -> setup que roda antes de cada migração (carrega .env, importa modelos)
+- script.py.mako     -> template usado para gerar novos arquivos de migração
+- versions/          -> uma migração por arquivo, encadeadas por revision id
+
+Comandos úteis (rodar a partir da raiz do projeto):
+
+    alembic upgrade head                 # aplica todas as migrações pendentes
+    alembic downgrade -1                 # desfaz a última migração
+    alembic current                      # mostra a versão atual do banco
+    alembic history                      # lista todas as migrações
+    alembic revision -m "mensagem"       # cria uma migração nova vazia
+    alembic revision --autogenerate -m "msg"   # cria migração comparando models vs banco

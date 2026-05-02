@@ -13,6 +13,12 @@ python-dotenv>=1.0.0            # Lido por pydantic-settings
 sqlmodel                        # ORM em cima do SQLAlchemy + Pydantic
 alembic                         # Migrações
 psycopg2-binary                 # Driver Postgres (Supabase)
+pgvector                        # Tipo `vector` do Postgres + integração com SQLAlchemy
+
+# ============================================================================
+# Embeddings
+# ============================================================================
+google-genai>=1.0.0             # SDK novo do Gemini (embed_content). Substitui google-generativeai.
 
 # ============================================================================
 # API web (para a futura interface de chat)
